@@ -4,7 +4,7 @@ Arxiv2Notion is an automated tool that searches for newly published papers on [a
 
 ---
 ## ⚙️ What should I modify to customize this repo the way I want?
-- Just modify `KEYWORDS`, `LOOKBACK_DAYS`, `MY_RESEARCH_AREA` and `ALLOWED_SUBJECTS`, `prompt` in `arxiv_to_notion.py` as you like.
+- Just modify `KEYWORDS`, `LOOKBACK_DAYS`, `MY_RESEARCH_AREA`, `prompt` and `ALLOWED_SUBJECTS` in `arxiv_to_notion.py` as you like.
 - Just follow the [Setup Instructions](#setup-instructions), and you'll be able to use it with no trouble.
   
 ## 🔍 How It Works
