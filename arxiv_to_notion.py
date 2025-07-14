@@ -23,7 +23,9 @@ KEYWORDS = [
     "audio to speech",
     "Omni",
     "voice assistant",
-    "Audio LLM"
+    "Audio LLM",
+    "prosody",
+    "paralinguistics",
   ]
 ALLOWED_SUBJECTS = {"cs.CL", "cs.AI", "cs.LG", "cs.SD"}
 MY_RESEARCH_AREA = "My research focuses on developing virtual agents that understand user situations by jointly reasoning over user speech and ambient sounds as multimodal input, with a particular emphasis on generating speech with diverse styles using audio language models."
