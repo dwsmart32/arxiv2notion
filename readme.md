@@ -5,7 +5,7 @@ Arxiv2Notion is an automated tool that searches for newly published papers on [a
 ---
 ## ⚙️ What should I modify to customize this repo the way I want?
 - Just modify `KEYWORDS`, `LOOKBACK_DAYS`, `MY_RESEARCH_AREA` and `prompt` in `arxiv_to_notion.py` as you like.
-
+- Just follow the Setup Instructions, and you'll be able to use it with no trouble.
   
 ## 🔍 How It Works
 
@@ -100,5 +100,6 @@ The script can be configured via `arxiv_to_notion.py` and GitHub Action secrets.
 - To change the schedule, edit the cron expression in `.github/workflows/main.yml`.
 
 ---
-## 🔍 Example
+## 🔍 Author's Example
 - [Author's Public Example](https://www.notion.so/SPL-paper-list-2248f62eeae280e191a4f831c41225f7?source=copy_link)
+  
