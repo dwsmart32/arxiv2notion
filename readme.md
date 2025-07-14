@@ -3,7 +3,10 @@
 Arxiv2Notion is an automated tool that searches for newly published papers on [arXiv.org](https://arxiv.org), checks their relevance to your research, and logs them neatly into your Notion database.
 
 ---
+## ⚙️ What should I modify to customize this repo the way I want?
+- Just modify `KEYWORDS`, `LOOKBACK_DAYS`, `MY_RESEARCH_AREA` and `prompt` in `arxiv_to_notion.py` as you like.
 
+  
 ## 🔍 How It Works
 
 - **Daily Search:**
