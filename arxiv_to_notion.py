@@ -15,6 +15,8 @@ GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
 
 # ✅ Hard-code non-secret configurations directly in the script
 KEYWORDS = [
+    "backchannel",
+    "interruption",
     "audio language model",
     "speech language model",
     "speech style",
