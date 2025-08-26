@@ -148,7 +148,13 @@ def analyze_paper_with_gemini(paper):
     # --- PDF 다운로드 ---
     try:
         print(f"  - PDF 다운로드 중: {paper['pdf_link']}")
-        doc_response = httpx.get(paper['pdf_link'], timeout=30)
+        headers = {"User-Agent": "paper-bot/1.0 (+contact@example.com)"}
+        doc_response = httpx.get(
+            paper['pdf_link'],
+            timeout=30,
+            headers=headers,
+            follow_redirects=True,   # <- 이것 때문에 301을 자동 추적
+        )
         doc_response.raise_for_status()
         doc_data = doc_response.content
         print("  - PDF 다운로드 완료.")
