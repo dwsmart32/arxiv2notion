@@ -105,19 +105,25 @@ def fetch_arxiv_papers():
             # ArXiv ID (e.g., http://arxiv.org/abs/2401.12345)
             paper_abs_url = entry.id.text.strip()
             # PDF URL (e.g., http://arxiv.org/pdf/2401.12345.pdf)
-            paper_pdf_url = paper_abs_url.replace('abs', 'pdf')
-
+            pdf_link_tag = entry.find('link', attrs={'title': 'pdf'})
+            if pdf_link_tag and pdf_link_tag.get('href'):
+                paper_pdf_url = pdf_link_tag['href']  # 보통 이미 https://.../pdf/...v1.pdf
+            else:
+                # 2) 안전하게 https + .pdf 로 변환
+                abs_https = paper_abs_url.replace('http://', 'https://')
+                paper_pdf_url = abs_https.replace('/abs/', '/pdf/')
+                if not paper_pdf_url.endswith('.pdf'):
+                    paper_pdf_url += '.pdf'
+        
             if paper_abs_url not in unique_papers:
-                # ✨ 제목과 초록의 연속 공백 및 줄바꿈을 하나의 공백으로 변경
                 clean_title = ' '.join(entry.title.text.strip().split())
                 clean_abstract = ' '.join(entry.summary.text.strip().split())
-
                 unique_papers[paper_abs_url] = {
                     'title': clean_title,
-                    'link': paper_abs_url, # Abstract page URL
-                    'pdf_link': paper_pdf_url, # PDF URL
+                    'link': paper_abs_url.replace('http://', 'https://'),
+                    'pdf_link': paper_pdf_url,
                     'updated_str': entry.updated.text,
-                    'abstract': clean_abstract, # ✨ 원본 초록 (요약 전)
+                    'abstract': clean_abstract,
                     'author': entry.author.find('name').text.strip() if entry.author else 'arXiv',
                     'categories': [cat['term'] for cat in entry.find_all('category')]
                 }
