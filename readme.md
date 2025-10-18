@@ -103,9 +103,9 @@ The script can be configured via `arxiv_to_notion.py` and GitHub Action secrets.
 ## 🔍 What if I want to run additional database table in parallel?
 1. Add `notion_arxiv2.py` file as you did
 2. Make new database table in your new notion page.
-3. Change `DATABASE_ID` of `notion_arxiv2.py` into `DATABASE_ID_2` (or whatever you like)
+3. Change `DATABASE_ID` of `notion_arxiv2.py` into `DATABASE_ID_2` (or whatever you like. Here I add fd for secondary database instead of `_2`.)
 4. Set the `DATABASE_ID_2` secrets in **GitHub → Settings → Secrets and variables → Actions** as you did.
-5. Add several lines running `notion_arxiv2.py` in `main.yml` file same as `notion_arxiv.py` part
+5. Add several lines about running `notion_arxiv2.py` in `.github/workflows/main.yml` file same as `notion_arxiv.py` part
 6. Change other variables according to your preference.
 
 ---
