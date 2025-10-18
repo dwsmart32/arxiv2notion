@@ -4,7 +4,7 @@ Arxiv2Notion is an automated tool that searches for newly published papers on [a
 
 ---
 ## ⚙️ What should I modify to customize mine?
-- Just modify `KEYWORDS`, `LOOKBACK_DAYS`, `MY_RESEARCH_AREA`, `prompt` and `ALLOWED_SUBJECTS` in `arxiv_to_notion.py` as you like.
+- Just modify `BASE_KEYWORDS`, `LOOKBACK_DAYS`, `MY_RESEARCH_AREA`, `prompt` and `ALLOWED_SUBJECTS` in `arxiv_to_notion.py` as you like.
 - Just follow the [Setup Instructions](#setup-instructions), and you'll be able to use it with no trouble.
   
 ## 🔍 How It Works
@@ -55,7 +55,7 @@ The script can be configured via `arxiv_to_notion.py` and GitHub Action secrets.
 | Parameter          | Description                                                       |
 |--------------------|-------------------------------------------------------------------|
 | `LOOKBACK_DAYS`    | How many days back from today to search on arXiv                  |
-| `KEYWORDS`         | List of keywords to search for                                    |
+| `BASE_KEYWORDS`    | List of keywords to search for                                    |
 | `MY_RESEARCH_AREA` | A short description of your research area (used to check relevance) |
 | `ALLOWED_SUBJECTS` | As of now, we are using {"cs.CL"(NLP), "cs.AI"(ML), "cs.LG"(ML)} [refer to much more category](https://arxiv.org/category_taxonomy)|
 
@@ -89,7 +89,7 @@ The script can be configured via `arxiv_to_notion.py` and GitHub Action secrets.
    - `NOTION_TOKEN`
    - `DATABASE_ID`
    - `GOOGLE_API_KEY`
-3. Modify `KEYWORDS`, `LOOKBACK_DAYS`, and `MY_RESEARCH_AREA` in `arxiv_to_notion.py`.
+3. Modify `BASE_KEYWORDS`, `LOOKBACK_DAYS`, and `MY_RESEARCH_AREA` in `arxiv_to_notion.py`.
 4. Go to your notion page, then you should manually add each colum in your database table(in your page) with appropriate property type.(`Paper`, `Abstract`, `Relatedness`, ... `Results`)
 5. That's it! The script will run daily via GitHub Actions.
 
