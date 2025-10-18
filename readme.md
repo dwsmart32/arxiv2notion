@@ -100,7 +100,7 @@ The script can be configured via `arxiv_to_notion.py` and GitHub Action secrets.
 - To change the schedule, edit the cron expression in `.github/workflows/main.yml`.
 
 ---
-## 🔍 What if I want to run seperate database table in parallel?
+## 🔍 What if I want to run additional database table in parallel?
 1. Add `notion_arxiv2.py` file as you did
 2. Make new database table in your new notion page.
 3. Change `DATABASE_ID` of `notion_arxiv2.py` into `DATABASE_ID_2` (or whatever you like)
