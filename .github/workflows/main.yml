@@ -43,3 +43,11 @@ jobs:
           DATABASE_ID: ${{ secrets.DATABASE_ID }}
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
         run: python arxiv_to_notion.py # Make sure this file name matches yours
+      
+      # Step 5: Run Second Python script
+      - name: Run FD Notion updater
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          DATABASE_ID_FD: ${{ secrets.DATABASE_ID_FD }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        run: python arxiv_to_notion_fd.py
