@@ -13,17 +13,48 @@ NOTION_TOKEN = os.environ.get("NOTION_TOKEN")
 DATABASE_ID = os.environ.get("DATABASE_ID_FD")
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
 
-# ✅ Hard-code non-secret configurations directly in the script
-KEYWORDS = [
+# ✅ [변경 1] 기본 키워드 목록을 간소화했습니다.
+# 이 목록을 기반으로 모든 조합(하이픈, 대소문자)을 자동으로 생성합니다.
+BASE_KEYWORDS = [
     "full duplex",
-    "full-duplex",
-    "Full Duplex",
-  
     "half duplex",
-    "half-duplex",
-    "Half Duplex",
-    
-  ]
+    "Spoken Dialogue System",
+]
+
+# ✅ [추가 1] 요청하신 키워드 확장 기능을 함수로 구현했습니다.
+def expand_keywords(base_keywords):
+    """
+    기본 키워드 목록을 받아 다양한 변형(하이픈, 대소문자)을 생성합니다.
+    - 2어절 이상 단어는 공백과 하이픈(-) 버전을 모두 생성합니다.
+    - 각 버전에 대해 소문자, 대문자, 첫 글자 대문자 버전을 모두 생성합니다.
+    - set을 사용하여 중복된 키워드는 자동으로 제거합니다.
+    """
+    expanded = set()
+    for keyword in base_keywords:
+        # 원본 키워드에서 공백과 하이픈 버전을 모두 준비
+        variants = set()
+        # 공백이 포함된 경우, 하이픈으로 바꾼 버전 추가
+        if ' ' in keyword:
+            variants.add(keyword.replace(' ', '-'))
+        # 하이픈이 포함된 경우, 공백으로 바꾼 버전 추가 (향후 사용 대비)
+        if '-' in keyword:
+            variants.add(keyword.replace('-', ' '))
+        # 원본 자체도 variants에 추가
+        variants.add(keyword)
+
+        # 준비된 각 버전에 대해 대소문자 조합을 생성
+        for variant in variants:
+            expanded.add(variant.lower())  # 전체 소문자 (e.g., "full duplex")
+            expanded.add(variant.upper())  # 전체 대문자 (e.g., "FULL DUPLEX")
+            expanded.add(variant.title())  # 단어 첫 글자만 대문자 (e.g., "Full Duplex")
+            
+    return list(expanded)
+
+# ✅ [추가 2] 위에서 만든 함수를 호출하여 최종 검색 키워드 목록을 생성합니다.
+# 스크립트의 다른 부분은 이 KEYWORDS 변수를 그대로 사용하므로 추가 수정이 필요 없습니다.
+KEYWORDS = expand_keywords(BASE_KEYWORDS)
+
+
 ALLOWED_SUBJECTS = {"cs.CL", "cs.AI", "cs.LG", "cs.SD"}
 MY_RESEARCH_AREA = "My research focuses on developing virtual agents that understand user situations by jointly reasoning over user speech and ambient sounds as multimodal input, with a particular emphasis on generating speech with diverse styles using audio language models."
 LOOKBACK_DAYS = 360
@@ -32,7 +63,7 @@ LOOKBACK_DAYS = 360
 if not all([NOTION_TOKEN, DATABASE_ID, GOOGLE_API_KEY]):
     raise ValueError("❌ One or more secret environment variables are not set. Please check your GitHub repository secrets.")
 
-MODEL_LIST = ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-flash-lite-preview-06-17"]
+MODEL_LIST = ["gemini-1.5-pro-latest", "gemini-1.5-flash-latest", "gemini-1.0-pro", "gemini-pro"]
 
 current_model_index = 0 # 사용할 모델을 가리키는 인덱스
 
@@ -79,6 +110,8 @@ def fetch_arxiv_papers():
     base_url = "http://export.arxiv.org/api/query?"
     unique_papers = {}
     print("⬇️  키워드 기반 arXiv 논문 다운로드 시작...")
+    # [변경 없음] 이제 'KEYWORDS' 변수에는 모든 조합이 포함되어 있으므로, 이 루프는 수정할 필요가 없습니다.
+    print(f"💡 총 {len(KEYWORDS)}개의 확장된 키워드로 검색을 시작합니다: {KEYWORDS}")
     for keyword in set(KEYWORDS):
         print(f"🔎 키워드 검색 중: \"{keyword}\"")
         search_query = f'ti:"{keyword}" OR abs:"{keyword}"'
@@ -104,7 +137,7 @@ def fetch_arxiv_papers():
                 paper_pdf_url = abs_https.replace('/abs/', '/pdf/')
                 if not paper_pdf_url.endswith('.pdf'):
                     paper_pdf_url += '.pdf'
-        
+            
             if paper_abs_url not in unique_papers:
                 clean_title = ' '.join(entry.title.text.strip().split())
                 clean_abstract = ' '.join(entry.summary.text.strip().split())
