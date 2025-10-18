@@ -62,21 +62,21 @@ The script can be configured via `arxiv_to_notion.py` and GitHub Action secrets.
 ---
 
 ## 🗃️ Notion Table Structure
-- You should consider property type when you add column in your database table.
+- You should match property `Column Name` and `Property Type` below and the those of each colum in your notion table when you add column in your database table.
 
-| Column Name                   | Property Type | Description                                      |
-|------------------------------|----------------|--------------------------------------------------|
-| Paper                        | title          | Title of the paper                              |
-| Abstract                     | text           | Full abstract (via Gemini)                      |
-| Relatedness                  | select         | Whether the paper is related to your research   |
-| Date                         | date           | Publication date on arXiv                       |
-| URL                          | url            | Direct link to the arXiv paper                  |
-| Author                       | text           | Authors of the paper                            |
-| Motivation                   | text           | Motivation of the paper                         |
-| Differences from Prior Work  | text           | Differences from Prior Work                     |
-| Contributions and Novelty    | text           | Contributions and Novelty                       |
-| Proposed Method              | text           | Proposed Method of the paper                    |
-| Results                      | text           | Results of the paper                            |
+| Column Name                   | Property Type |
+|------------------------------|----------------|
+| Paper                        | no need to set |
+| Abstract                     | text           | 
+| Relatedness                  | select         | 
+| Date                         | date           | 
+| URL                          | url            | 
+| Author                       | text           | 
+| Motivation                   | text           | 
+| Differences from Prior Work  | text           | 
+| Contributions and Novelty    | text           | 
+| Proposed Method              | text           | 
+| Results                      | text           |
 
 
 ---
@@ -98,6 +98,15 @@ The script can be configured via `arxiv_to_notion.py` and GitHub Action secrets.
 ## 📅 Scheduling 
 - Default: **Every day at 09:00 AM KST**
 - To change the schedule, edit the cron expression in `.github/workflows/main.yml`.
+
+---
+## 🔍 What if I want to run seperate database table in parallel?
+1. Add `notion_arxiv2.py` file as you did
+2. Make new database table in your new notion page.
+3. Change `DATABASE_ID` of `notion_arxiv2.py` into `DATABASE_ID_2` (or whatever you like)
+4. Set the `DATABASE_ID_2` secrets in **GitHub → Settings → Secrets and variables → Actions** as you did.
+5. Add several lines running `notion_arxiv2.py` in `main.yml` file same as `notion_arxiv.py` part
+6. Change other variables according to your preference.
 
 ---
 ## 🔍 Author's Example
