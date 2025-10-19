@@ -63,7 +63,7 @@ LOOKBACK_DAYS = 360
 if not all([NOTION_TOKEN, DATABASE_ID, GOOGLE_API_KEY]):
     raise ValueError("❌ One or more secret environment variables are not set. Please check your GitHub repository secrets.")
 
-MODEL_LIST = ["gemini-1.5-pro-latest", "gemini-1.5-flash-latest", "gemini-1.0-pro", "gemini-pro"]
+MODEL_LIST = ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-flash-lite-preview-06-17"]
 
 current_model_index = 0 # 사용할 모델을 가리키는 인덱스
 
