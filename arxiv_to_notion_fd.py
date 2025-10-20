@@ -333,42 +333,54 @@ def main():
     print("🚀 논문 자동화 스크립트를 시작합니다.")
 
     print("\n[1/4] 📚 Notion DB에서 기존 논문 목록 가져오는 중...")
-    existing_titles = fetch_existing_titles()
-    print(f"총 {len(existing_titles)}개의 논문이 Notion에 존재합니다.")
+    # ✅ [수정 1] 소문자로 비교하기 위해 existing_titles를 모두 소문자로 준비합니다.
+    existing_titles_lower = {title.lower() for title in fetch_existing_titles()}
+    print(f"총 {len(existing_titles_lower)}개의 논문이 Notion에 존재합니다.")
 
     print("\n[2/4] 🔍 arXiv에서 신규 논문 검색 및 필터링 중...")
     arxiv_papers = fetch_arxiv_papers()
     print(f"👍 날짜/주제 필터 통과한 논문 수: {len(arxiv_papers)}")
 
-    final_papers_to_add = []
+    analyzed_papers = []
     if arxiv_papers:
         print("\n[3/4] 🤖 Gemini 관련도 분석 및 항목별 요약 시작...")
-        new_papers = [p for p in arxiv_papers if p['title'] not in existing_titles]
-        print(f"중복을 제외한 신규 논문 {len(new_papers)}개를 분석합니다.")
+        # ✅ [수정 2] 비교 시 arxiv 논문 제목도 소문자로 변환하여 비교합니다.
+        new_papers_to_analyze = [p for p in arxiv_papers if p['title'].lower() not in existing_titles_lower]
+        print(f"중복을 제외한 신규 논문 {len(new_papers_to_analyze)}개를 분석합니다.")
 
-        for i, paper in enumerate(new_papers):
-            print(f"({i+1}/{len(new_papers)}) 🔬 Gemini 분석 중: {paper['title'][:60]}...")
+        for i, paper in enumerate(new_papers_to_analyze):
+            print(f"({i+1}/{len(new_papers_to_analyze)}) 🔬 Gemini 분석 중: {paper['title'][:60]}...")
             
-            # Gemini 함수가 (상태, 요약 딕셔너리)를 반환
             related_status, summary_parts = analyze_paper_with_gemini(paper)
 
             if related_status and summary_parts:
-                # `paper` 객체, `status`, `summary_parts` 딕셔너리를 함께 저장
-                final_papers_to_add.append((paper, related_status, summary_parts))
+                analyzed_papers.append((paper, related_status, summary_parts))
                 print(f"👍 Gemini 분석 완료! (상태: {related_status})")
             else:
                 print(f"👎 Gemini 분석 실패. 이 논문은 등록되지 않습니다.")
             time.sleep(1)
 
     print(f"\n[4/4] 📝 Notion DB에 최종 논문 등록 시작...")
-    if not final_papers_to_add:
+    if not analyzed_papers:
         print("✨ 새로 추가할 논문이 없습니다.")
     else:
-        print(f"총 {len(final_papers_to_add)}개의 새로운 논문을 Notion에 추가합니다.")
-        # `paper`, `status`, `parts`를 올바르게 전달
-        for paper, status, parts in final_papers_to_add:
-            add_to_notion(paper, status, parts)
-            time.sleep(0.5)
+        # ✅ [수정 3] Race Condition 방지를 위해 Notion에 쓰기 직전에 DB 목록을 다시 한번 불러옵니다.
+        print("🔄 최종 중복 체크를 위해 Notion DB 목록을 다시 가져옵니다...")
+        final_existing_titles_lower = {title.lower() for title in fetch_existing_titles()}
+        
+        final_papers_to_add = [
+            (paper, status, parts)
+            for paper, status, parts in analyzed_papers
+            if paper['title'].lower() not in final_existing_titles_lower
+        ]
+
+        if not final_papers_to_add:
+            print("✨ 최종 중복 체크 결과, 새로 추가할 논문이 없습니다.")
+        else:
+            print(f"총 {len(final_papers_to_add)}개의 새로운 논문을 Notion에 추가합니다.")
+            for paper, status, parts in final_papers_to_add:
+                add_to_notion(paper, status, parts)
+                time.sleep(0.5)
 
     print("\n🎉 모든 작업이 완료되었습니다!")
 
