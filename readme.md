@@ -1,19 +1,16 @@
 # Arxiv2Notion
 
-Arxiv2Notion is an automated tool that searches for newly published papers on [arXiv.org](https://arxiv.org), checks their relevance to your research, and logs them neatly into your Notion database.
+Arxiv2Notion enables searching for newly published papers based on your preferences using [arXiv.org API](https://arxiv.org), checks recent, relevant papers to your research, and easily follow up!
 
 ---
-## ⚙️ What should I modify to customize mine?
-- Just modify `BASE_KEYWORDS`, `LOOKBACK_DAYS`, `MY_RESEARCH_AREA`, `prompt` and `ALLOWED_SUBJECTS` in `arxiv_to_notion.py` as you like.
-- Just follow the [Setup Instruction](#setup-instruction), and you'll be able to use it with no trouble.
-  
+
 ## 🔍 How It Works
 
 - **Daily Search:**
-  Runs every day at **9:00 AM KST** (customizable via the GitHub Actions workflow `.yml` file).
+  It searches for papers for you every day at **9:00 AM KST**.(customizable via the GitHub Actions workflow `.yml` file).
 
 - **Keyword Matching:**
-  Searches arXiv using a list of user-defined keywords in `arxiv_to_notion.py`. Keywords with hyphens (e.g., `few-shot`) are handled appropriately.
+  It searches arXiv using a list of user-defined keywords in `arxiv_to_notion.py`.
 
 - **Smart Filtering:**
   Uses **Google Gemini models** to:
@@ -21,10 +18,14 @@ Arxiv2Notion is an automated tool that searches for newly published papers on [a
   - **Determine relevance** to your research (`Related` / `Unrelated`)
 
 - **Duplicate Handling:**
-  Automatically filters out previously processed papers to avoid duplication.
+  Automatically filters out previously processed papers to avoid duplication based on the Title.
 
 ---
+## ⚙️ What should I modify to customize mine?
+- Just modify `BASE_KEYWORDS`, `LOOKBACK_DAYS`, `MY_RESEARCH_AREA`, `prompt` and `ALLOWED_SUBJECTS` in `arxiv_to_notion.py` as you like.
+- Just follow the [Setup Instruction](#setup-instruction), and you'll be able to use it with no trouble.
 
+---
 ## 🧠 Gemini Models
 
 - The following Gemini models are used in sequence to support higher request rates (up to 45 RPM or 1550 RPD for free tier):
