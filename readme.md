@@ -23,7 +23,7 @@ Arxiv2Notion enables searching for newly published papers based on your preferen
 ---
 ## ⚙️ How to Customize Yours?
 - Just follow the [Setup Instruction](#setup-instruction).
-- Simply edit BASE_KEYWORDS, LOOKBACK_DAYS, MY_RESEARCH_AREA, prompt, and ALLOWED_SUBJECTS in arxiv_to_notion.py — that’s all it takes.
+- Simply edit `BASE_KEYWORDS`, `LOOKBACK_DAYS`, `MY_RESEARCH_AREA`, `prompt`, and `ALLOWED_SUBJECTS` in `arxiv_to_notion.py` — that’s all it takes.
 
 
 ---
