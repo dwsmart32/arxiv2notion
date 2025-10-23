@@ -21,7 +21,7 @@ Arxiv2Notion enables searching for newly published papers based on your preferen
   Automatically filters out previously processed papers to avoid duplication based on the Title.
 
 ---
-## ⚙️ What should I modify to customize mine?
+## ⚙️ How to Customize Yours?
 - Just modify `BASE_KEYWORDS`, `LOOKBACK_DAYS`, `MY_RESEARCH_AREA`, `prompt` and `ALLOWED_SUBJECTS` in `arxiv_to_notion.py` as you like.
 - Just follow the [Setup Instruction](#setup-instruction), and you'll be able to use it with no trouble.
 
