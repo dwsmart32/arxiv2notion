@@ -5,7 +5,7 @@ Arxiv2Notion is an automated tool that searches for newly published papers on [a
 ---
 ## ⚙️ What should I modify to customize mine?
 - Just modify `BASE_KEYWORDS`, `LOOKBACK_DAYS`, `MY_RESEARCH_AREA`, `prompt` and `ALLOWED_SUBJECTS` in `arxiv_to_notion.py` as you like.
-- Just follow the [Setup Instructions](#setup-instructions), and you'll be able to use it with no trouble.
+- Just follow the [Setup Instruction](#setup-instruction), and you'll be able to use it with no trouble.
   
 ## 🔍 How It Works
 
@@ -62,7 +62,7 @@ The script can be configured via `arxiv_to_notion.py` and GitHub Action secrets.
 ---
 
 ## 🗃️ Notion Table Structure
-- You should match property `Column Name` and `Property Type` below and the those of each colum in your notion table when you add column in your database table.
+- You should match property `Column Name` and `Property Type` below and the those of each colum in your notion table when you add column in your database table. You don't need to set the property type of the first column. It will be automatically set, once you create `database table`.
 
 | Column Name                   | Property Type |
 |------------------------------|----------------|
@@ -81,7 +81,7 @@ The script can be configured via `arxiv_to_notion.py` and GitHub Action secrets.
 
 ---
 
-## 🛠 Setup Instructions
+## 🛠 Setup Instruction
 
 0. After issuing `Notion_TOKEN`, [link your api with your notion page that your database table exists](https://developers.notion.com/docs/create-a-notion-integration)(refer to   `Give your integration page permissions` Section in link)
 1. **Fork/clone** this repository.
@@ -100,15 +100,15 @@ The script can be configured via `arxiv_to_notion.py` and GitHub Action secrets.
 - To change the schedule, edit the cron expression in `.github/workflows/main.yml`.
 
 ---
-## 🔍 What if I want to run additional database table in parallel?
-1. Add `notion_arxiv2.py` file as you did.
+## 🔍 What if I want to operate additional database table in parallel?
+1. Add `notion_arxiv2.py` file as you did(`notion_arxiv_fd.py` in the case of this repo).
 2. Make new database table in your new notion page.
-3. Change `DATABASE_ID` of `notion_arxiv2.py` into `DATABASE_ID_2` (or whatever you like. Here I add fd for a secondary database instead of `_2`.)
+3. Change `DATABASE_ID` of `notion_arxiv2.py` into `DATABASE_ID_2` (or whatever you like. This repo adds `fd` for a second database instead of `_2`.)
 4. Set the `DATABASE_ID_2` secrets in **GitHub → Settings → Secrets and variables → Actions** as you did.
 5. Add several lines running `notion_arxiv2.py` in `.github/workflows/main.yml` file same as `notion_arxiv.py` part.
 6. Change other variables according to your preference.
 
 ---
-## 🔍 Author's Example
-- [Author's Public Example](https://www.notion.so/SPL-paper-list-2248f62eeae280e191a4f831c41225f7?source=copy_link)
+## 🔍 Result Visualization
+- [Notion Database Example](https://www.notion.so/SPL-paper-list-2248f62eeae280e191a4f831c41225f7?source=copy_link)
   
