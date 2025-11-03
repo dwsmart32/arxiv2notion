@@ -9,12 +9,13 @@ from google.genai import types
 import httpx
 import re
 
+# --- 설정 (Secrets) ---
 NOTION_TOKEN = os.environ.get("NOTION_TOKEN")
 DATABASE_ID = os.environ.get("DATABASE_ID_MP")
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
+S2_API_KEY = os.environ.get("SEMANTICSCHOLAR_API_KEY") # ✅ [S2 추가]
 
-# ✅ [변경 1] 기본 키워드 목록을 간소화했습니다.
-# 이 목록을 기반으로 모든 조합(하이픈, 대소문자)을 자동으로 생성합니다.
+# --- 설정 (키워드 및 필터) ---
 BASE_KEYWORDS = [
     "Multi Party",
     "Multi Party Dialogues",
@@ -22,59 +23,52 @@ BASE_KEYWORDS = [
     "Multi speakers"
 ]
 
-# ✅ [추가 1] 요청하신 키워드 확장 기능을 함수로 구현했습니다.
-def expand_keywords(base_keywords):
-    """
-    기본 키워드 목록을 받아 다양한 변형(하이픈, 대소문자)을 생성합니다.
-    - 2어절 이상 단어는 공백과 하이픈(-) 버전을 모두 생성합니다.
-    - 각 버전에 대해 소문자, 대문자, 첫 글자 대문자 버전을 모두 생성합니다.
-    - set을 사용하여 중복된 키워드는 자동으로 제거합니다.
-    """
-    expanded = set()
-    for keyword in base_keywords:
-        # 원본 키워드에서 공백과 하이픈 버전을 모두 준비
-        variants = set()
-        # 공백이 포함된 경우, 하이픈으로 바꾼 버전 추가
-        if ' ' in keyword:
-            variants.add(keyword.replace(' ', '-'))
-        # 하이픈이 포함된 경우, 공백으로 바꾼 버전 추가 (향후 사용 대비)
-        if '-' in keyword:
-            variants.add(keyword.replace('-', ' '))
-        # 원본 자체도 variants에 추가
-        variants.add(keyword)
+# ✅ [S2 통합] arXiv와 S2의 카테고리 이름이 다르므로 분리합니다.
+ARXIV_ALLOWED_SUBJECTS = {"cs.CL", "cs.AI", "cs.LG", "cs.SD"}
+S2_ALLOWED_SUBJECTS = {"Computer Science", "Linguistics", "Engineering"} # ✅ [S2 추가]
 
-        # 준비된 각 버전에 대해 대소문자 조합을 생성
-        for variant in variants:
-            expanded.add(variant.lower())  # 전체 소문자 (e.g., "full duplex")
-            expanded.add(variant.upper())  # 전체 대문자 (e.g., "FULL DUPLEX")
-            expanded.add(variant.title())  # 단어 첫 글자만 대문자 (e.g., "Full Duplex")
-            
-    return list(expanded)
-
-# ✅ [추가 2] 위에서 만든 함수를 호출하여 최종 검색 키워드 목록을 생성합니다.
-# 스크립트의 다른 부분은 이 KEYWORDS 변수를 그대로 사용하므로 추가 수정이 필요 없습니다.
-KEYWORDS = expand_keywords(BASE_KEYWORDS)
-
-
-ALLOWED_SUBJECTS = {"cs.CL", "cs.AI", "cs.LG", "cs.SD"}
 MY_RESEARCH_AREA = "My research focuses on developing full duplex spoken language model that understands the multi-party conversation and situations"
 LOOKBACK_DAYS = 360
 
-# Basic check to ensure secrets were loaded
-if not all([NOTION_TOKEN, DATABASE_ID, GOOGLE_API_KEY]):
-    raise ValueError("❌ One or more secret environment variables are not set. Please check your GitHub repository secrets.")
+# --- 기본 체크 ---
+if not all([NOTION_TOKEN, DATABASE_ID, GOOGLE_API_KEY, S2_API_KEY]): # ✅ [S2 추가] S2_API_KEY 체크
+    raise ValueError("❌ 하나 이상의 Secret 환경 변수가 설정되지 않았습니다. (NOTION, DATABASE_ID, GOOGLE_API_KEY, S2_API_KEY)")
 
-MODEL_LIST = ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-flash-lite-preview-06-17"]
+MODEL_LIST = ["gemini-1.5-pro-latest", "gemini-1.5-flash-latest", "gemini-pro"] # ✅ 모델 리스트 최신화
+current_model_index = 0
 
-current_model_index = 0 # 사용할 모델을 가리키는 인덱스
-
-# ✅ 날짜 계산도 config 기반으로
 today = datetime.today()
-yesterday = today - timedelta(days=LOOKBACK_DAYS)
+lookback_date_obj = today - timedelta(days=LOOKBACK_DAYS) # ✅ [S2 통합] 날짜 객체로 저장
 
-# ✅ Gemini client 설정
+# --- Gemini 클라이언트 설정 ---
 client = genai.Client(api_key=GOOGLE_API_KEY)
 
+
+# --- 키워드 확장 함수 ---
+def expand_keywords(base_keywords):
+    """
+    기본 키워드 목록을 받아 다양한 변형(하이픈, 대소문자)을 생성합니다.
+    """
+    expanded = set()
+    for keyword in base_keywords:
+        variants = {keyword}
+        if ' ' in keyword:
+            variants.add(keyword.replace(' ', '-'))
+        if '-' in keyword:
+            variants.add(keyword.replace('-', ' '))
+
+        for variant in variants:
+            expanded.add(variant.lower())
+            expanded.add(variant.upper())
+            expanded.add(variant.title())
+            
+    return list(expanded)
+
+# ✅ [S2 통합] 최종 검색 키워드 목록
+KEYWORDS = expand_keywords(BASE_KEYWORDS)
+
+
+# --- Notion DB 함수 ---
 def fetch_existing_titles():
     """Notion 데이터베이스에서 기존 논문 제목들을 가져옵니다."""
     url = f"https://api.notion.com/v1/databases/{DATABASE_ID}/query"
@@ -94,7 +88,6 @@ def fetch_existing_titles():
             results = res.json()
             for page in results["results"]:
                 try:
-                    # ✨ 공백 정규화 추가
                     title = ' '.join(page["properties"]["Paper"]["title"][0]["text"]["content"].split())
                     titles.add(title)
                 except (KeyError, IndexError):
@@ -106,15 +99,18 @@ def fetch_existing_titles():
             break
     return titles
 
-def fetch_arxiv_papers():
+# --- ArXiv 논문 수집 함수 ---
+def fetch_arxiv_papers(lookback_date):
     """키워드를 기반으로 arXiv에서 논문을 검색하고 날짜와 카테고리로 필터링합니다."""
     base_url = "http://export.arxiv.org/api/query?"
     unique_papers = {}
-    print("⬇️  키워드 기반 arXiv 논문 다운로드 시작...")
-    # [변경 없음] 이제 'KEYWORDS' 변수에는 모든 조합이 포함되어 있으므로, 이 루프는 수정할 필요가 없습니다.
+    print("⬇️  [ArXiv] 키워드 기반 논문 다운로드 시작...")
     print(f"💡 총 {len(KEYWORDS)}개의 확장된 키워드로 검색을 시작합니다: {KEYWORDS}")
+    
+    today_date = datetime.today().date()
+
     for keyword in set(KEYWORDS):
-        print(f"🔎 키워드 검색 중: \"{keyword}\"")
+        print(f"🔎 [ArXiv] 키워드 검색 중: \"{keyword}\"")
         search_query = f'ti:"{keyword}" OR abs:"{keyword}"'
         params = f"search_query={search_query}&sortBy=submittedDate&sortOrder=descending&max_results=50"
         try:
@@ -123,46 +119,135 @@ def fetch_arxiv_papers():
         except requests.exceptions.RequestException as e:
             print(f"❌ \"{keyword}\" 검색 중 arXiv API 오류: {e}")
             continue
+        
         soup = BeautifulSoup(response.content, 'xml')
         entries = soup.find_all('entry')
+        
         for entry in entries:
-            # ArXiv ID (e.g., http://arxiv.org/abs/2401.12345)
+            # --- 날짜 필터링 (ArXiv) ---
+            updated_str = entry.updated.text
+            updated_date = datetime.strptime(updated_str, "%Y-%m-%dT%H:%M:%SZ").date()
+            if not (lookback_date <= updated_date <= today_date):
+                continue
+
+            # --- 카테고리 필터링 (ArXiv) ---
+            categories = [cat['term'] for cat in entry.find_all('category')]
+            if not any(subject in categories for subject in ARXIV_ALLOWED_SUBJECTS):
+                continue
+
             paper_abs_url = entry.id.text.strip()
-            # PDF URL (e.g., http://arxiv.org/pdf/2401.12345.pdf)
-            pdf_link_tag = entry.find('link', attrs={'title': 'pdf'})
-            if pdf_link_tag and pdf_link_tag.get('href'):
-                paper_pdf_url = pdf_link_tag['href']  # 보통 이미 https://.../pdf/...v1.pdf
-            else:
-                # 2) 안전하게 https + .pdf 로 변환
-                abs_https = paper_abs_url.replace('http://', 'https://')
-                paper_pdf_url = abs_https.replace('/abs/', '/pdf/')
-                if not paper_pdf_url.endswith('.pdf'):
-                    paper_pdf_url += '.pdf'
-            
             if paper_abs_url not in unique_papers:
-                clean_title = ' '.join(entry.title.text.strip().split())
-                clean_abstract = ' '.join(entry.summary.text.strip().split())
+                pdf_link_tag = entry.find('link', attrs={'title': 'pdf'})
+                if pdf_link_tag and pdf_link_tag.get('href'):
+                    paper_pdf_url = pdf_link_tag['href']
+                else:
+                    abs_https = paper_abs_url.replace('http://', 'https://')
+                    paper_pdf_url = abs_https.replace('/abs/', '/pdf/')
+                    if not paper_pdf_url.endswith('.pdf'):
+                        paper_pdf_url += '.pdf'
+                
                 unique_papers[paper_abs_url] = {
-                    'title': clean_title,
+                    'title': ' '.join(entry.title.text.strip().split()),
                     'link': paper_abs_url.replace('http://', 'https://'),
                     'pdf_link': paper_pdf_url,
-                    'updated_str': entry.updated.text,
-                    'abstract': clean_abstract,
+                    'updated_str': updated_str, # ArXiv는 이미 ISO 형식이므로 그대로 사용
+                    'abstract': ' '.join(entry.summary.text.strip().split()),
                     'author': entry.author.find('name').text.strip() if entry.author else 'arXiv',
-                    'categories': [cat['term'] for cat in entry.find_all('category')]
+                    'categories': categories
                 }
         time.sleep(1)
-    print(f"👍 총 {len(unique_papers)}개의 고유 논문 발견. 필터링 시작...")
-    filtered_papers = []
-    for paper in unique_papers.values():
-        updated_date = datetime.strptime(paper['updated_str'], "%Y-%m-%dT%H:%M:%SZ").date()
-        if not (yesterday.date() <= updated_date <= today.date()):
-            continue
-        if not any(subject in paper['categories'] for subject in ALLOWED_SUBJECTS):
-            continue
-        filtered_papers.append(paper)
-    return filtered_papers
+        
+    print(f"👍 [ArXiv] 총 {len(unique_papers)}개의 고유 논문 발견.")
+    return list(unique_papers.values())
 
+
+# --- ✅ [S2 추가] Semantic Scholar 논문 수집 함수 ---
+def fetch_semantic_scholar_papers(keywords, lookback_date):
+    """
+    키워드를 기반으로 Semantic Scholar에서 논문을 검색하고
+    날짜와 카테고리로 필터링하여 '표준 형식'으로 반환합니다.
+    """
+    base_url = "https://api.semanticscholar.org/graph/v1/paper/search"
+    
+    s2_fields = [
+        "paperId", "url", "title", "abstract", "authors",
+        "publicationDate", "openAccessPdf", "fieldsOfStudy"
+    ]
+    
+    headers = {'X-API-KEY': S2_API_KEY}
+    unique_papers = {}
+    today_date = datetime.today().date()
+
+    print(f"⬇️  [S2] Semantic Scholar 논문 검색 시작 (최근 {LOOKBACK_DAYS}일)...")
+
+    for keyword in set(keywords):
+        print(f"🔎 [S2] 키워드 검색 중: \"{keyword}\"")
+        
+        params = {
+            'query': keyword,
+            'fields': ','.join(s2_fields),
+            'sort': 'publicationDate:desc',
+            'limit': 50
+        }
+        
+        try:
+            response = requests.get(base_url, headers=headers, params=params, timeout=15)
+            response.raise_for_status()
+            results = response.json()
+
+            for paper_data in results.get('data', []):
+                paper_id = paper_data.get('paperId')
+                if not paper_id or paper_id in unique_papers:
+                    continue
+
+                # --- 1. 날짜 필터링 (S2) ---
+                pub_date_str = paper_data.get('publicationDate')
+                if not pub_date_str:
+                    continue
+                
+                try:
+                    pub_date = datetime.strptime(pub_date_str, "%Y-%m-%d").date()
+                except ValueError:
+                    continue 
+
+                if not (lookback_date <= pub_date <= today_date):
+                    continue
+
+                # --- 2. 카테고리 필터링 (S2) ---
+                categories = paper_data.get('fieldsOfStudy') or []
+                if not categories or not any(subject in S2_ALLOWED_SUBJECTS for subject in categories):
+                    continue
+                
+                # --- 3. 표준 형식으로 파싱 (S2) ---
+                authors_list = paper_data.get('authors', [])
+                author_str = authors_list[0].get('name', 'S2') if authors_list else 'S2'
+                
+                oa_pdf = paper_data.get('openAccessPdf')
+                pdf_link = oa_pdf.get('url') if (oa_pdf and oa_pdf.get('url')) else paper_data.get('url')
+
+                # Notion 저장을 위해 ISO T Z 형식으로 변환
+                updated_str_iso = f"{pub_date_str}T00:00:00Z"
+
+                unique_papers[paper_id] = {
+                    'title': ' '.join(paper_data.get('title', 'No Title').split()),
+                    'link': paper_data.get('url'),
+                    'pdf_link': pdf_link,
+                    'updated_str': updated_str_iso,
+                    'abstract': ' '.join(paper_data.get('abstract', 'N/A').split()),
+                    'author': author_str,
+                    'categories': categories
+                }
+
+        except requests.exceptions.RequestException as e:
+            print(f"❌ \"{keyword}\" 검색 중 S2 API 오류: {e}")
+            continue
+        
+        time.sleep(1) # API 속도 제한 준수
+
+    print(f"👍 [S2] 총 {len(unique_papers)}개의 고유 논문 발견.")
+    return list(unique_papers.values())
+
+# --- Gemini 분석 함수 ---
 def analyze_paper_with_gemini(paper):
     """
     Gemini를 사용하여 PDF 논문을 분석하고, 요약을 5개 항목으로 파싱하여 반환합니다.
@@ -172,15 +257,13 @@ def analyze_paper_with_gemini(paper):
     # --- PDF 다운로드 ---
     try:
         print(f"  - PDF 다운로드 중: {paper['pdf_link']}")
-        headers = {"User-Agent": "paper-bot/1.0 (+contact@example.com)"}
-        doc_response = httpx.get(
-            paper['pdf_link'],
-            timeout=30,
-            headers=headers,
-            follow_redirects=True,   # <- 이것 때문에 301을 자동 추적
-        )
-        doc_response.raise_for_status()
-        doc_data = doc_response.content
+        headers = {"User-Agent": "paper-bot/1.0 (+github.com/dongwook-lee)"} # User-Agent 명시
+        
+        # httpx로 리다이렉트 자동 처리
+        with httpx.Client(follow_redirects=True, timeout=30) as http_client:
+             doc_response = http_client.get(paper['pdf_link'], headers=headers)
+             doc_response.raise_for_status()
+             doc_data = doc_response.content
         print("  - PDF 다운로드 완료.")
     except (httpx.RequestError, httpx.HTTPStatusError) as e:
         print(f"  ❌ PDF 다운로드/처리 실패: {e}")
@@ -224,12 +307,12 @@ def analyze_paper_with_gemini(paper):
         model_to_use = MODEL_LIST[current_model_index]
         print(f"  - Gemini 분석 시도 (모델: {model_to_use})")
         
-
         try:
-            response = client.models.generate_content(
+            # ✅ [S2 통합] 최신 Gemini API 호출 방식 (genai.Client)
+            response = client.generate_content(
                 model=model_to_use,
                 contents=[
-                    types.Part.from_bytes(data=doc_data, mime_type='application/pdf'),
+                    types.Part.from_data(data=doc_data, mime_type='application/pdf'),
                     prompt
                 ],
             )
@@ -246,22 +329,19 @@ def analyze_paper_with_gemini(paper):
                     
                     pattern = f"\[{current_tag}\](.*?)"
                     if next_tag:
-                        # 다음 태그가 있으면, non-greedy 방식으로 다음 태그 직전까지 파싱
                         pattern = f"\[{current_tag}\](.*?)(?=\[{next_tag}\])"
                     else:
-                        # 다음 태그가 없는 마지막 태그이면, greedy 방식으로 문자열 끝까지 파싱
                         pattern = f"\[{current_tag}\](.*)"
                     
                     match = re.search(pattern, summary_part, re.DOTALL | re.IGNORECASE)
                     
                     if match:
-                        # 파싱된 내용의 길이가 2000자를 넘으면 잘라내기
                         content = match.group(1).strip()
+                        # Notion의 텍스트 필드 최대 길이는 2000자입니다.
                         parsed_summary[current_tag] = content[:1990] + '...' if len(content) > 2000 else content
                     else:
-                        parsed_summary[current_tag] = "N/A" # 해당 섹션을 찾지 못한 경우
+                        parsed_summary[current_tag] = "N/A"
 
-                # 모든 태그가 파싱되었는지 확인
                 if all(tag in parsed_summary for tag in tags):
                     relevance = "Related" if "yes" in answer_part.lower() else "Unrelated"
                     return relevance, parsed_summary
@@ -286,7 +366,7 @@ def analyze_paper_with_gemini(paper):
     print("  ❌ 사용 가능한 모든 Gemini 모델의 쿼터를 소진했습니다.")
     return None, None
 
-# ✅ Notion에 논문 추가 (변경 없음 - 이미 요약본을 받도록 설계됨)
+# --- Notion 추가 함수 ---
 def add_to_notion(paper, related_status, summary_parts):
     """논문 정보, 관련도, 분할된 요약을 Notion에 추가합니다."""
     url = "https://api.notion.com/v1/pages"
@@ -298,16 +378,13 @@ def add_to_notion(paper, related_status, summary_parts):
 
     updated_str = paper['updated_str'].split('T')[0]
 
-    # Notion 속성 이름과 summary_parts의 키를 정확히 일치시켜야 합니다.
-    # 예: Notion 속성 이름 'Motivation' -> summary_parts['MOTIVATION']
     properties = {
         "Paper": {"title": [{"text": {"content": paper['title']}}]},
-        "Abstract": {"rich_text": [{"text": {"content": paper.get('abstract', '')}}]}, # 원본 초록 저장
-        "Author": {"rich_text": [{"text": {"content": paper.get('author', 'arXiv')}}]},
+        "Abstract": {"rich_text": [{"text": {"content": paper.get('abstract', 'N/A')[:1999]}}]}, # 원본 초록 (길이 제한)
+        "Author": {"rich_text": [{"text": {"content": paper.get('author', 'N/A')}}]},
         "Relatedness": {"select": {"name": related_status}},
         "URL": {"url": paper['link']},
         "Date": {"date": {"start": updated_str}},
-        # --- 분할된 요약 추가 ---
         "Motivation": {"rich_text": [{"text": {"content": summary_parts.get('MOTIVATION', 'N/A')}}]},
         "Differences from Prior Work": {"rich_text": [{"text": {"content": summary_parts.get('DIFFERENCES', 'N/A')}}]},
         "Contributions and Novelty": {"rich_text": [{"text": {"content": summary_parts.get('CONTRIBUTIONS', 'N/A')}}]},
@@ -324,33 +401,52 @@ def add_to_notion(paper, related_status, summary_parts):
         else:
             print(f"❌ Notion 등록 실패: {paper['title'][:60]}...")
             print(f"📄 Notion 응답: {res.status_code}")
-            print(res.text) # 실패 시 에러 메시지 확인
+            print(res.text)
     except requests.exceptions.RequestException as e:
         print(f"❌ Notion API 요청 실패: {paper['title'][:60]}... | {e}")
 
 
+# --- 🚀 메인 실행 함수 ---
 def main():
     """메인 스크립트 실행 함수"""
-    print("🚀 논문 자동화 스크립트를 시작합니다.")
+    print("🚀 논문 자동화 스크립트를 시작합니다. (ArXiv + Semantic Scholar)")
+    
+    # --- ✅ [S2 통합] 날짜 객체를 함수에 전달하도록 수정 ---
+    lookback_date = lookback_date_obj.date()
 
-    print("\n[1/4] 📚 Notion DB에서 기존 논문 목록 가져오는 중...")
-    # ✅ [수정 1] 소문자로 비교하기 위해 existing_titles를 모두 소문자로 준비합니다.
+    print("\n[1/5] 📚 Notion DB에서 기존 논문 목록 가져오는 중...")
     existing_titles_lower = {title.lower() for title in fetch_existing_titles()}
     print(f"총 {len(existing_titles_lower)}개의 논문이 Notion에 존재합니다.")
 
-    print("\n[2/4] 🔍 arXiv에서 신규 논문 검색 및 필터링 중...")
-    arxiv_papers = fetch_arxiv_papers()
-    print(f"👍 날짜/주제 필터 통과한 논문 수: {len(arxiv_papers)}")
+    print("\n[2/5] 🔍 논문 수집 중...")
+    # --- ✅ [S2 통합] 두 소스에서 모두 논문을 가져옵니다. ---
+    arxiv_papers = fetch_arxiv_papers(lookback_date)
+    s2_papers = fetch_semantic_scholar_papers(KEYWORDS, lookback_date)
+    
+    all_papers_raw = arxiv_papers + s2_papers
+    print(f"--- \n➡️  총 {len(all_papers_raw)}개 논문 발견 (ArXiv: {len(arxiv_papers)}, S2: {len(s2_papers)})")
+
+    # --- ✅ [S2 통합] (중요) S2와 ArXiv의 중복을 제목 기준으로 제거합니다. ---
+    print("\n[3/5] 🔄 (ArXiv + S2) 통합 리스트 중복 제거 중...")
+    unique_papers_dict = {}
+    for paper in all_papers_raw:
+        title_lower = paper['title'].lower()
+        if title_lower not in unique_papers_dict:
+            unique_papers_dict[title_lower] = paper
+    
+    all_papers_filtered = list(unique_papers_dict.values())
+    print(f"👍 중복 제거 후 총 {len(all_papers_filtered)}개의 고유 논문 확보.")
 
     analyzed_papers = []
-    if arxiv_papers:
-        print("\n[3/4] 🤖 Gemini 관련도 분석 및 항목별 요약 시작...")
-        # ✅ [수정 2] 비교 시 arxiv 논문 제목도 소문자로 변환하여 비교합니다.
-        new_papers_to_analyze = [p for p in arxiv_papers if p['title'].lower() not in existing_titles_lower]
-        print(f"중복을 제외한 신규 논문 {len(new_papers_to_analyze)}개를 분석합니다.")
+    if all_papers_filtered:
+        print("\n[4/5] 🤖 Gemini 관련도 분석 및 항목별 요약 시작...")
+        
+        # --- ✅ [S2 통합] Notion DB와 중복 체크 ---
+        new_papers_to_analyze = [p for p in all_papers_filtered if p['title'].lower() not in existing_titles_lower]
+        print(f"Notion DB 중복 제외 후, {len(new_papers_to_analyze)}개의 신규 논문을 분석합니다.")
 
         for i, paper in enumerate(new_papers_to_analyze):
-            print(f"({i+1}/{len(new_papers_to_analyze)}) 🔬 Gemini 분석 중: {paper['title'][:60]}...")
+            print(f"--- ({i+1}/{len(new_papers_to_analyze)}) 🔬 Gemini 분석 중: {paper['title'][:60]}...")
             
             related_status, summary_parts = analyze_paper_with_gemini(paper)
 
@@ -359,13 +455,13 @@ def main():
                 print(f"👍 Gemini 분석 완료! (상태: {related_status})")
             else:
                 print(f"👎 Gemini 분석 실패. 이 논문은 등록되지 않습니다.")
-            time.sleep(1)
+            time.sleep(1) # Gemini API 속도 제한
 
-    print(f"\n[4/4] 📝 Notion DB에 최종 논문 등록 시작...")
+    print(f"\n[5/5] 📝 Notion DB에 최종 논문 등록 시작...")
     if not analyzed_papers:
         print("✨ 새로 추가할 논문이 없습니다.")
     else:
-        # ✅ [수정 3] Race Condition 방지를 위해 Notion에 쓰기 직전에 DB 목록을 다시 한번 불러옵니다.
+        # ✅ [S2 통합] Race Condition 방지를 위해 최종 목록을 다시 가져옵니다.
         print("🔄 최종 중복 체크를 위해 Notion DB 목록을 다시 가져옵니다...")
         final_existing_titles_lower = {title.lower() for title in fetch_existing_titles()}
         
@@ -381,7 +477,7 @@ def main():
             print(f"총 {len(final_papers_to_add)}개의 새로운 논문을 Notion에 추가합니다.")
             for paper, status, parts in final_papers_to_add:
                 add_to_notion(paper, status, parts)
-                time.sleep(0.5)
+                time.sleep(0.5) # Notion API 속도 제한
 
     print("\n🎉 모든 작업이 완료되었습니다!")
 
