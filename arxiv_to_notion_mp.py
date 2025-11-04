@@ -235,12 +235,16 @@ def fetch_semantic_scholar_papers(keywords, lookback_date):
                 # Notion 저장을 위해 ISO T Z 형식으로 변환
                 updated_str_iso = f"{pub_date_str}T00:00:00Z"
 
+                # ✅ [수정] .get()으로 가져온 값이 None일 경우(JSON: null) 'or'로 기본값 설정
+                title_raw = paper_data.get('title')
+                abstract_raw = paper_data.get('abstract')
+
                 unique_papers[paper_id] = {
-                    'title': ' '.join(paper_data.get('title', 'No Title').split()),
+                    'title': ' '.join((title_raw or 'No Title').split()),
                     'link': paper_data.get('url'),
                     'pdf_link': pdf_link,
                     'updated_str': updated_str_iso,
-                    'abstract': ' '.join(paper_data.get('abstract', 'N/A').split()),
+                    'abstract': ' '.join((abstract_raw or 'N/A').split()),
                     'author': author_str,
                     'categories': categories
                 }
