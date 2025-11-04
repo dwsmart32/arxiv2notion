@@ -56,6 +56,6 @@ jobs:
       - name: Run MP Notion updater
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
-          DATABASE_ID_FD: ${{ secrets.DATABASE_ID_MP }}
+          DATABASE_ID_MP: ${{ secrets.DATABASE_ID_MP }}
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
         run: python arxiv_to_notion_mp.py
