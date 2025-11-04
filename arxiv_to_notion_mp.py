@@ -31,9 +31,16 @@ MY_RESEARCH_AREA = "My research focuses on developing full duplex spoken languag
 LOOKBACK_DAYS = 360
 
 # --- 기본 체크 ---
-if not all([NOTION_TOKEN, DATABASE_ID, GOOGLE_API_KEY, S2_API_KEY]): # ✅ [S2 추가] S2_API_KEY 체크
-    raise ValueError("❌ 하나 이상의 Secret 환경 변수가 설정되지 않았습니다. (NOTION, DATABASE_ID, GOOGLE_API_KEY, S2_API_KEY)")
+missing = [name for name, val in {
+    "NOTION_TOKEN": NOTION_TOKEN,
+    "DATABASE_ID_MP": DATABASE_ID,
+    "GOOGLE_API_KEY": GOOGLE_API_KEY,
+    "SEMANTICSCHOLAR_API_KEY": S2_API_KEY
+}.items() if not val]
 
+if missing:
+    raise ValueError(f"❌ 다음 환경 변수가 설정되지 않았습니다: {', '.join(missing)}")
+    
 MODEL_LIST = ["gemini-1.5-pro-latest", "gemini-1.5-flash-latest", "gemini-pro"] # ✅ 모델 리스트 최신화
 current_model_index = 0
 
