@@ -58,5 +58,5 @@ jobs:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           DATABASE_ID_MP: ${{ secrets.DATABASE_ID_MP }}
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
-          S2_API_KEY: ${{ secrets.SEMANTICSCHOLAR_API_KEY }}
+          SEMANTICSCHOLAR_API_KEY: ${{ secrets.SEMANTICSCHOLAR_API_KEY }}
         run: python arxiv_to_notion_mp.py
