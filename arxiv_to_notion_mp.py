@@ -41,7 +41,7 @@ missing = [name for name, val in {
 if missing:
     raise ValueError(f"❌ 다음 환경 변수가 설정되지 않았습니다: {', '.join(missing)}")
     
-MODEL_LIST = ["gemini-1.5-pro-latest", "gemini-1.5-flash-latest", "gemini-pro"] # ✅ 모델 리스트 최신화
+MODEL_LIST = ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-flash-lite-preview-06-17"]
 current_model_index = 0
 
 today = datetime.today()
