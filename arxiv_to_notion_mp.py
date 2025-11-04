@@ -320,7 +320,7 @@ def analyze_paper_with_gemini(paper):
         
         try:
             # ✅ [S2 통합] 최신 Gemini API 호출 방식 (genai.Client)
-            response = client.generate_content(
+            response = client.models.generate_content(
                 model=model_to_use,
                 contents=[
                     types.Part.from_data(data=doc_data, mime_type='application/pdf'),
