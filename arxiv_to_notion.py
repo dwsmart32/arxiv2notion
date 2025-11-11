@@ -167,6 +167,14 @@ def fetch_arxiv_papers():
         filtered_papers.append(paper)
     return filtered_papers
 
+def check_pdf_for_pages(pdf_data):
+    try:
+        reader = PyPDF2.PdfFileReader(io.BytesIO(pdf_data))
+        num_pages = reader.getNumPages()
+        return num_pages > 0
+    except PyPDF2.utils.PdfReadError:
+        return False
+        
 def analyze_paper_with_gemini(paper):
     """
     Gemini를 사용하여 PDF 논문을 분석하고, 요약을 5개 항목으로 파싱하여 반환합니다.
@@ -184,6 +192,11 @@ def analyze_paper_with_gemini(paper):
         doc_response.raise_for_status()
         doc_data = doc_response.content
         print("  - PDF 다운로드 완료.")
+        
+        if not check_pdf_for_pages(doc_data):
+            print("  ❌ PDF 파일에 페이지가 없습니다. 이 논문은 분석하지 않습니다.")
+            return None, None
+            
     except (httpx.RequestError, httpx.HTTPStatusError) as e:
         print(f"  ❌ PDF 다운로드/처리 실패: {e}")
         return None, None
