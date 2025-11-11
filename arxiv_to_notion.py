@@ -84,15 +84,15 @@ yesterday = today - timedelta(days=LOOKBACK_DAYS)
 # ✅ Gemini client 설정
 client = genai.Client(api_key=GOOGLE_API_KEY)
 
-def fetch_existing_titles():
-    """Notion 데이터베이스에서 기존 논문 제목들을 가져옵니다."""
+def fetch_existing_papers():
+    """Notion 데이터베이스에서 기존 논문 URL을 가져옵니다."""
     url = f"https://api.notion.com/v1/databases/{DATABASE_ID}/query"
     headers = {
         "Authorization": f"Bearer {NOTION_TOKEN}",
         "Notion-Version": "2022-06-28",
         "Content-Type": "application/json"
     }
-    titles = set()
+    existing_papers = set()
     has_more = True
     next_cursor = None
     while has_more:
@@ -103,8 +103,8 @@ def fetch_existing_titles():
             results = res.json()
             for page in results["results"]:
                 try:
-                    title = ' '.join(page["properties"]["Paper"]["title"][0]["text"]["content"].split())
-                    titles.add(title)
+                    paper_url = page["properties"]["URL"]["url"]  # 논문의 URL을 가져옵니다.
+                    existing_papers.add(paper_url)
                 except (KeyError, IndexError):
                     continue
             has_more = results.get("has_more", False)
@@ -112,15 +112,13 @@ def fetch_existing_titles():
         except requests.exceptions.RequestException as e:
             print(f"❌ Notion 제목 조회 중 오류 발생: {e}")
             break
-    return titles
+    return existing_papers
 
 def fetch_arxiv_papers():
     """키워드를 기반으로 arXiv에서 논문을 검색하고 날짜와 카테고리로 필터링합니다."""
     base_url = "http://export.arxiv.org/api/query?"
     unique_papers = {}
     print("⬇️  키워드 기반 arXiv 논문 다운로드 시작...")
-    # [변경 없음] 이제 'KEYWORDS' 변수에는 모든 조합이 포함되어 있으므로, 이 루프는 수정할 필요가 없습니다.
-    print(f"💡 총 {len(KEYWORDS)}개의 확장된 키워드로 검색을 시작합니다.")
     for keyword in set(KEYWORDS):
         print(f"🔎 키워드 검색 중: \"{keyword}\"")
         search_query = f'ti:"{keyword}" OR abs:"{keyword}"'
@@ -316,15 +314,15 @@ def main():
     """메인 스크립트 실행 함수"""
     print("🚀 논문 자동화 스크립트를 시작합니다.")
     print("\n[1/4] 📚 Notion DB에서 기존 논문 목록 가져오는 중...")
-    existing_titles = fetch_existing_titles()
-    print(f"총 {len(existing_titles)}개의 논문이 Notion에 존재합니다.")
+    existing_papers = fetch_existing_papers()  # 변경된 함수 사용
+    print(f"총 {len(existing_papers)}개의 논문이 Notion에 존재합니다.")
     print("\n[2/4] 🔍 arXiv에서 신규 논문 검색 및 필터링 중...")
     arxiv_papers = fetch_arxiv_papers()
     print(f"👍 날짜/주제 필터 통과한 논문 수: {len(arxiv_papers)}")
     final_papers_to_add = []
     if arxiv_papers:
         print("\n[3/4] 🤖 Gemini 관련도 분석 및 항목별 요약 시작...")
-        new_papers = [p for p in arxiv_papers if p['title'] not in existing_titles]
+        new_papers = [p for p in arxiv_papers if p['link'] not in existing_papers]  # URL을 기준으로 중복 제거
         print(f"중복을 제외한 신규 논문 {len(new_papers)}개를 분석합니다.")
         for i, paper in enumerate(new_papers):
             print(f"({i+1}/{len(new_papers)}) 🔬 Gemini 분석 중: {paper['title'][:60]}...")
