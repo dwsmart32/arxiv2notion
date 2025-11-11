@@ -8,7 +8,8 @@ import time
 from google.genai import types
 import httpx
 import re
-
+import PyPDF2
+import io
 NOTION_TOKEN = os.environ.get("NOTION_TOKEN")
 DATABASE_ID = os.environ.get("DATABASE_ID")
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
