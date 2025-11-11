@@ -168,10 +168,11 @@ def fetch_arxiv_papers():
 
 def check_pdf_for_pages(pdf_data):
     try:
-        reader = PyPDF2.PdfFileReader(io.BytesIO(pdf_data))
-        num_pages = reader.getNumPages()
+        # PdfReader로 변경
+        reader = PyPDF2.PdfReader(io.BytesIO(pdf_data))
+        num_pages = len(reader.pages)  # 페이지 수는 .pages로 확인
         return num_pages > 0
-    except PyPDF2.utils.PdfReadError:
+    except PyPDF2.errors.PdfReadError:  # PdfReadError로 변경
         return False
         
 def analyze_paper_with_gemini(paper):
