@@ -258,6 +258,15 @@ def fetch_semantic_scholar_papers(keywords, lookback_date):
     print(f"👍 [S2] 총 {len(unique_papers)}개의 고유 논문 발견.")
     return list(unique_papers.values())
 
+
+def check_pdf_for_pages(pdf_data):
+    try:
+        reader = PyPDF2.PdfFileReader(io.BytesIO(pdf_data))
+        num_pages = reader.getNumPages()
+        return num_pages > 0
+    except PyPDF2.utils.PdfReadError:
+        return False
+        
 # --- Gemini 분석 함수 ---
 def analyze_paper_with_gemini(paper):
     """
@@ -276,6 +285,11 @@ def analyze_paper_with_gemini(paper):
              doc_response.raise_for_status()
              doc_data = doc_response.content
         print("  - PDF 다운로드 완료.")
+        
+        if not check_pdf_for_pages(doc_data):
+            print("  ❌ PDF 파일에 페이지가 없습니다. 이 논문은 분석하지 않습니다.")
+            return None, None
+            
     except (httpx.RequestError, httpx.HTTPStatusError) as e:
         print(f"  ❌ PDF 다운로드/처리 실패: {e}")
         return None, None
