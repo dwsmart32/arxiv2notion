@@ -119,51 +119,98 @@ def fetch_arxiv_papers():
     base_url = "http://export.arxiv.org/api/query?"
     unique_papers = {}
     print("⬇️  키워드 기반 arXiv 논문 다운로드 시작...")
-    for keyword in set(KEYWORDS):
-        print(f"🔎 키워드 검색 중: \"{keyword}\"")
-        search_query = f'ti:"{keyword}" OR abs:"{keyword}"'
-        params = f"search_query={search_query}&sortBy=submittedDate&sortOrder=descending&max_results=50"
-        try:
-            response = requests.get(base_url + params, timeout=10)
-            response.raise_for_status()
-        except requests.exceptions.RequestException as e:
-            print(f"❌ \"{keyword}\" 검색 중 arXiv API 오류: {e}")
-            continue
-        soup = BeautifulSoup(response.content, 'xml')
-        entries = soup.find_all('entry')
-        for entry in entries:
-            paper_abs_url = entry.id.text.strip()
-            pdf_link_tag = entry.find('link', attrs={'title': 'pdf'})
-            if pdf_link_tag and pdf_link_tag.get('href'):
-                paper_pdf_url = pdf_link_tag['href']
-            else:
-                abs_https = paper_abs_url.replace('http://', 'https://')
-                paper_pdf_url = abs_https.replace('/abs/', '/pdf/')
-                if not paper_pdf_url.endswith('.pdf'):
-                    paper_pdf_url += '.pdf'
+
+    # [수정 1] 확장된 KEYWORDS 대신 원본 BASE_KEYWORDS를 사용합니다.
+    query_parts = []
+    for keyword in BASE_KEYWORDS:
+        # 각 키워드를 "제목" 또는 "초록"에서 검색하는 구문으로 만듭니다.
+        query_parts.append(f'(ti:"{keyword}" OR abs:"{keyword}")')
+
+    # [수정 2] 모든 키워드 검색 구문을 "OR"로 연결하여 하나의 쿼리로 만듭니다.
+    search_query = " OR ".join(query_parts)
+    
+    print(f"💡 {len(BASE_KEYWORDS)}개 키워드를 하나의 쿼리로 arXiv 검색 중...")
+
+    # [수정 3] max_results를 500으로 늘리고, params를 딕셔너리로 전달합니다.
+    params_dict = {
+        'search_query': search_query,
+        'sortBy': 'submittedDate',
+        'sortOrder': 'descending',
+        'max_results': 500 
+    }
+
+    try:
+        # [수정 4] arXiv API 정책을 존중하여 요청 전 3초 대기합니다.
+        print("...arXiv API 예의상 3초 대기...")
+        time.sleep(3)
+        
+        # [수정 5] timeout을 30초로 늘립니다.
+        response = requests.get(base_url, params=params_dict, timeout=30)
+        response.raise_for_status()
+
+    # [수정 6] 429 (Rate Limit) 에러에 대한 재시도 로직 추가
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 429:
+            print("❌ arXiv API 레이트 리밋 (429) 감지. 60초 후 1회 재시도합니다.")
+            time.sleep(60)
+            try:
+                response = requests.get(base_url, params=params_dict, timeout=30)
+                response.raise_for_status()
+            except requests.exceptions.RequestException as e2:
+                print(f"❌ 재시도 실패: {e2}")
+                return [] # 실패 시 빈 리스트 반환
+        else:
+            print(f"❌ HTTP 오류 발생: {e}")
+            return []
+    except requests.exceptions.RequestException as e:
+        print(f"❌ arXiv API 검색 중 오류: {e}")
+        return [] # 실패 시 빈 리스트 반환
+
+    soup = BeautifulSoup(response.content, 'xml')
+    entries = soup.find_all('entry')
+
+    for entry in entries:
+        paper_abs_url = entry.id.text.strip()
+        pdf_link_tag = entry.find('link', attrs={'title': 'pdf'})
+        if pdf_link_tag and pdf_link_tag.get('href'):
+            paper_pdf_url = pdf_link_tag['href']
+        else:
+            abs_https = paper_abs_url.replace('http://', 'https://')
+            paper_pdf_url = abs_https.replace('/abs/', '/pdf/')
+            if not paper_pdf_url.endswith('.pdf'):
+                paper_pdf_url += '.pdf'
+        
+        if paper_abs_url not in unique_papers:
+            clean_title = ' '.join(entry.title.text.strip().split())
+            clean_abstract = ' '.join(entry.summary.text.strip().split())
+            unique_papers[paper_abs_url] = {
+                'title': clean_title,
+                'link': paper_abs_url.replace('http://', 'https://'),
+                'pdf_link': paper_pdf_url,
+                'updated_str': entry.updated.text,
+                'abstract': clean_abstract,
+                'author': entry.author.find('name').text.strip() if entry.author else 'arXiv',
+                'categories': [cat['term'] for cat in entry.find_all('category')]
+            }
             
-            if paper_abs_url not in unique_papers:
-                clean_title = ' '.join(entry.title.text.strip().split())
-                clean_abstract = ' '.join(entry.summary.text.strip().split())
-                unique_papers[paper_abs_url] = {
-                    'title': clean_title,
-                    'link': paper_abs_url.replace('http://', 'https://'),
-                    'pdf_link': paper_pdf_url,
-                    'updated_str': entry.updated.text,
-                    'abstract': clean_abstract,
-                    'author': entry.author.find('name').text.strip() if entry.author else 'arXiv',
-                    'categories': [cat['term'] for cat in entry.find_all('category')]
-                }
-        time.sleep(1)
+    # [수정 7] 키워드 루프가 사라졌으므로 time.sleep(1)도 제거되었습니다.
+
     print(f"👍 총 {len(unique_papers)}개의 고유 논문 발견. 필터링 시작...")
+    
     filtered_papers = []
     for paper in unique_papers.values():
         updated_date = datetime.strptime(paper['updated_str'], "%Y-%m-%dT%H:%M:%SZ").date()
+        
+        # 날짜 필터링 (최근 LOOKBACK_DAYS일 이내)
         if not (yesterday.date() <= updated_date <= today.date()):
             continue
+            
+        # 카테고리 필터링
         if not any(subject in paper['categories'] for subject in ALLOWED_SUBJECTS):
             continue
+            
         filtered_papers.append(paper)
+        
     return filtered_papers
 
 def check_pdf_for_pages(pdf_data):
