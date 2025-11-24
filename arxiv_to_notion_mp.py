@@ -262,10 +262,17 @@ def fetch_semantic_scholar_papers(keywords, lookback_date):
 
 def check_pdf_for_pages(pdf_data):
     try:
-        reader = PyPDF2.PdfFileReader(io.BytesIO(pdf_data))
-        num_pages = reader.getNumPages()
+        # PyPDF2 3.0.0+ uses PdfReader instead of PdfFileReader
+        reader = PyPDF2.PdfReader(io.BytesIO(pdf_data))
+        
+        # getNumPages() is deprecated; use len(reader.pages)
+        num_pages = len(reader.pages)
         return num_pages > 0
-    except PyPDF2.utils.PdfReadError:
+        
+    # Catching generic Exception is safer here because PyPDF2 error paths 
+    # changed significantly between versions (utils vs errors)
+    except Exception as e:
+        print(f"  ⚠️ PDF parsing error: {e}")
         return False
         
 # --- Gemini 분석 함수 ---
